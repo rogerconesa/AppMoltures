@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AppMoltures">
+  <rect width="512" height="512" rx="112" fill="#2563eb"/>
+  <rect x="64" y="300" width="384" height="90" rx="22" fill="#f4dfbd" opacity="0.95"/>
+  <path d="M92 330V230h64v100M156 330V188l76-48 80 48v142M312 330V224h62v-42h64v148" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M148 188h170M310 224h136" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+  <path d="M354 178c28-68 9-94-18-84-5-35-43-30-43 2-31-20-59 13-35 45-39 9-37 57 6 61" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 230h28M190 282h28M252 230h28M252 282h28M338 254h28M397 254h28" fill="none" stroke="#dbeafe" stroke-width="18" stroke-linecap="round"/>
+</svg>
