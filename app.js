@@ -116,8 +116,13 @@ function getCapLabel(total) {
   return 'Aforament molt alt';
 }
 
-function getFamilyInitials(id) {
-  return getFamilyName(id)
+// FIX: accepta tant string com array
+function getFamilyInitials(familyVal) {
+  const id = Array.isArray(familyVal) ? familyVal[0] : familyVal;
+  if (!id) return '?';
+  const name = getFamilyName(id);
+  if (typeof name !== 'string') return '?';
+  return name
     .split(/[\/\s]+/)
     .filter(Boolean)
     .map((part) => part[0])
@@ -148,7 +153,7 @@ function buildWhatsAppMessage(r) {
     `Espais: ${getSpacesLabel(r.spaces)}`,
     `Persones: ${r.adults} adults · ${r.children} nens (${total} total)`,
     '',
-    'Obre AppMoltures per veure’n els detalls.'
+    'Obre AppMoltures per veure\'n els detalls.'
   ].filter(Boolean);
 
   if (window.location.protocol.startsWith('http')) lines.push(window.location.href.split('#')[0]);
@@ -197,8 +202,11 @@ function showView(view) {
   currentView = view;
   document.getElementById('view-summary').classList.toggle('active', view === 'summary');
   document.getElementById('view-month').classList.toggle('active', view === 'month');
-  document.getElementById('nav-summary').classList.toggle('active', view === 'summary');
-  document.getElementById('nav-month').classList.toggle('active', view === 'month');
+
+  // Bottom nav tabs
+  document.querySelectorAll('#bottom-nav .nav-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === view);
+  });
 }
 
 function getWeekDates(offset) {
@@ -242,17 +250,6 @@ function buildFamilyGrid() {
   `).join('');
 }
 
-function buildSlotGrid() {
-  const g = document.getElementById('slotGrid');
-  if (!g) return;
-  g.innerHTML = SLOTS.map((s) => `
-    <button class="picker-btn" onclick="selectSlot('${s.id}')">
-      <strong>${escapeHtml(s.name)}</strong>
-      <span>${escapeHtml(s.note)}</span>
-    </button>
-  `).join('');
-}
-
 function buildSpaceGrid() {
   const g = document.getElementById('spaceGrid');
   g.innerHTML = SPACES.map((s) => `
@@ -276,7 +273,7 @@ function toggleFamily(id) {
   else selectedFamilies.add(id);
   buildFamilyGrid();
 }
-function selectSlot(id) { buildSlotGrid(); }
+
 function toggleSpace(id) {
   if (selectedSpaces.has(id)) selectedSpaces.delete(id);
   else selectedSpaces.add(id);
@@ -312,7 +309,7 @@ function openModal(dateStr, slotId, resId) {
     document.getElementById('modalTitle').textContent = 'Editar esdeveniment';
     document.getElementById('deleteButton').style.display = 'inline-flex';
   } else {
-    document.getElementById('inputDate').value = dateStr || dateStr || dateKey(today);
+    document.getElementById('inputDate').value = dateStr || dateKey(today);
   }
   document.getElementById('whatsappButton').style.display = 'inline-flex';
   buildFamilyGrid();
@@ -366,8 +363,14 @@ async function saveReservation() {
   reservations[id] = reservation;
   renderAll();
 
-  try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
-  showNotif(editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat', 'success');
+  try {
+    await db.ref('reservations/' + id).set(reservation);
+    showNotif(editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat', 'success');
+  } catch (e) {
+    console.error('RTDB save failed:', e);
+    showNotif('Error desant: ' + (e.message || e.code || 'error desconegut'), 'error');
+    updateSyncStatus(false);
+  }
 }
 
 function resCardHTML(id, r, compact) {
@@ -379,6 +382,7 @@ function resCardHTML(id, r, compact) {
   const time = getEventTimeLabel(r);
 
   if (compact) {
+    // FIX: passar r.family directament (getFamilyInitials ja gestiona array/string)
     return `<div class="chip ${color}" onclick="event.stopPropagation();openModal('','','${id}')">${escapeHtml(getFamilyInitials(r.family))}</div>`;
   }
   return `
@@ -426,58 +430,6 @@ function renderEventSummary() {
   document.getElementById('eventSummary').innerHTML = html;
 }
 
-function renderWeekMobile(dates) {
-  const html = dates.map((date) => {
-    const key = dateKey(date);
-    const dayRes = getReservationsForDate(key);
-    const blocks = SLOTS.map((slot) => {
-      const entry = dayRes.find(([, r]) => r.slot === slot.id);
-      const content = entry
-        ? resCardHTML(entry[0], entry[1])
-        : `<div class="mobile-empty">Franja lliure</div><button class="btn-soft" onclick="openModal('${key}','${slot.id}')">Reservar ${escapeHtml(slot.name.toLowerCase())}</button>`;
-      return `<div class="mobile-slot"><div class="ms-head"><div class="ms-title">${escapeHtml(slot.name)}</div><div class="ms-note">${escapeHtml(slot.note)}</div></div>${content}</div>`;
-    }).join('');
-    const wc = isWeekend(date) ? ' weekend' : '';
-    const tc = isToday(date) ? ' today' : '';
-    return `<section class="mobile-day${wc}${tc}"><div class="md-head"><div><div class="md-name">${escapeHtml(DAY_NAMES[(date.getDay()+6)%7])}</div><div class="md-date">${date.getDate()} ${MONTHS_CA[date.getMonth()]} ${date.getFullYear()}</div></div><span class="md-badge">${dayRes.length} ${dayRes.length===1?'reserva':'reserves'}</span></div><div class="ms-list">${blocks}</div></section>`;
-  }).join('');
-  document.getElementById('weekMobile').innerHTML = '<div class="wm-list">' + html + '</div>';
-}
-
-function renderWeek() {
-  const dates = getWeekDates(weekOffset);
-  const from = dates[0], to = dates[6];
-  document.getElementById('weekTitle').textContent = from.getMonth() === to.getMonth()
-    ? `${from.getDate()}-${to.getDate()} ${MONTHS_CA[from.getMonth()]} ${from.getFullYear()}`
-    : `${from.getDate()} ${MONTHS_CA[from.getMonth()]} - ${to.getDate()} ${MONTHS_CA[to.getMonth()]} ${to.getFullYear()}`;
-  renderEventSummary();
-
-  let html = '<div class="wc-corner"></div>';
-  dates.forEach((date) => {
-    const mi = (date.getDay() + 6) % 7;
-    const we = isWeekend(date) ? ' weekend' : '';
-    const td = isToday(date) ? ' today' : '';
-    html += `<div class="wc-header${we}${td}">${DAY_SHORT[mi]}<strong>${date.getDate()}</strong></div>`;
-  });
-
-  SLOTS.forEach((slot) => {
-    html += `<div class="wc-slot"><div class="wcs-name">${escapeHtml(slot.name)}</div><div class="wcs-note">${escapeHtml(slot.note)}</div></div>`;
-    dates.forEach((date) => {
-      const key = dateKey(date);
-      const entry = getReservationFor(key, slot.id);
-      const we = isWeekend(date) ? ' weekend' : '';
-      if (entry) {
-        html += `<div class="wc-cell${we}">${resCardHTML(entry[0], entry[1])}</div>`;
-      } else {
-        html += `<div class="wc-cell${we}"><div class="cell-empty"><span class="empty-note">Franja lliure</span><button class="btn-soft" onclick="openModal('${key}','${slot.id}')">Reservar ${escapeHtml(slot.name.toLowerCase())}</button></div></div>`;
-      }
-    });
-  });
-
-  document.getElementById('weekGrid').innerHTML = html;
-  renderWeekMobile(dates);
-}
-
 function renderMonthCalendar() {
   const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
   document.getElementById('monthTitle').textContent = `${MONTHS_CA[first.getMonth()]} ${first.getFullYear()}`;
@@ -499,13 +451,21 @@ function renderMonthCalendar() {
   cells.forEach(({ date, other }) => {
     const key = dateKey(date);
     const dayRes = getReservationsForDate(key);
-    const chips = dayRes.length
-      ? dayRes.map(([id, r]) => `<div class="chip ${r.capacityColor||getCapColor(getTotalPeople(r))}" onclick="event.stopPropagation();openModal('','','${id}')">${escapeHtml(getFamilyInitials(r.family))}</div>`).join('')
-      : '';
+
+    // FIX: generar chips correctament per a tots els events del dia
+    const chips = dayRes.map(([id, r]) => {
+      const color = r.capacityColor || getCapColor(getTotalPeople(r));
+      const initials = escapeHtml(getFamilyInitials(r.family));
+      return `<div class="chip ${color}" onclick="event.stopPropagation();openModal('','','${id}')">${initials}</div>`;
+    }).join('');
+
     const ot = other ? ' other' : '';
     const we = isWeekend(date) ? ' weekend' : '';
     const td = isToday(date) ? ' today' : '';
-    html += `<div class="mc-day${ot}${we}${td}" onclick="openDayDetail('${key}')"><div class="mc-day-top"><span class="mc-day-num">${date.getDate()}</span></div><div class="mc-day-items">${chips||'<span class="mc-empty">-</span>'}</div></div>`;
+    html += `<div class="mc-day${ot}${we}${td}" onclick="openDayDetail('${key}')">
+      <div class="mc-day-top"><span class="mc-day-num">${date.getDate()}</span></div>
+      <div class="mc-day-items">${chips || '<span class="mc-empty">-</span>'}</div>
+    </div>`;
   });
 
   document.getElementById('monthGrid').innerHTML = html;
