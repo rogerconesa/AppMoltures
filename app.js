@@ -203,9 +203,12 @@ function showView(view) {
   document.getElementById('view-summary').classList.toggle('active', view === 'summary');
   document.getElementById('view-month').classList.toggle('active', view === 'month');
   document.getElementById('view-historic').classList.toggle('active', view === 'historic');
-  document.getElementById('nav-summary').classList.toggle('active', view === 'summary');
-  document.getElementById('nav-month').classList.toggle('active', view === 'month');
-  document.getElementById('nav-historic').classList.toggle('active', view === 'historic');
+
+  // Bottom nav tabs
+  document.querySelectorAll('#bottom-nav .nav-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === view);
+  });
+
   if (view === 'historic') renderHistoric();
 }
 
@@ -761,21 +764,32 @@ function renderChartsSection(stats) {
     });
   }
 
-  // Chart 2: adults vs children stacked by family
+  // Chart 2: pie chart of events distribution by family (full names)
   if (famEntries.length) {
-    renderChart('chartPeopleByFamily', {
-      type: 'bar',
+    renderChart('chartFamilyPie', {
+      type: 'pie',
       data: {
-        labels: famEntries.map(([id]) => getFamilyName(id).split('/')[0].trim()),
-        datasets: [
-          { label: 'Adults', data: famEntries.map(([,v]) => v.adults), backgroundColor: '#bfdbfe', borderColor: '#2563eb', borderWidth: 2, borderRadius: 4 },
-          { label: 'Nens', data: famEntries.map(([,v]) => v.children), backgroundColor: '#fde68a', borderColor: '#b45309', borderWidth: 2, borderRadius: 4 }
-        ]
+        labels: famEntries.map(([id]) => getFamilyName(id)),
+        datasets: [{
+          data: famEntries.map(([,v]) => v.events),
+          backgroundColor: BG_COLORS.slice(0, famEntries.length),
+          borderColor: COLORS.slice(0, famEntries.length),
+          borderWidth: 2
+        }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { ...baseLegend, position: 'top' } },
-        scales: { x: { ...baseScales.x, stacked: true }, y: { ...baseScales.y, stacked: true } }
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: textColor, font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 12, boxHeight: 12 }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.parsed} event${ctx.parsed !== 1 ? 's' : ''}`
+            }
+          }
+        }
       }
     });
   }
@@ -808,19 +822,45 @@ function renderChartsSection(stats) {
     });
   }
 
-  // Chart 4: spaces doughnut
-  const spaceEntries = Object.entries(stats.bySpace);
+  // Chart 4: spaces doughnut - use all defined spaces, show count in tooltip
+  const spaceEntries = SPACES.map(s => [s.id, stats.bySpace[s.id] || 0]).filter(([,v]) => v > 0);
   if (spaceEntries.length) {
+    const totalSpaceUses = spaceEntries.reduce((sum, [,v]) => sum + v, 0);
     renderChart('chartBySpace', {
       type: 'doughnut',
       data: {
         labels: spaceEntries.map(([id]) => getSpaceName(id)),
-        datasets: [{ data: spaceEntries.map(([,v]) => v), backgroundColor: BG_COLORS, borderColor: COLORS, borderWidth: 2 }]
+        datasets: [{ data: spaceEntries.map(([,v]) => v), backgroundColor: BG_COLORS.slice(0, spaceEntries.length), borderColor: COLORS.slice(0, spaceEntries.length), borderWidth: 2 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { ...baseLegend, position: 'bottom' } },
-        cutout: '62%'
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: textColor, font: { family: 'Inter', size: 12 }, padding: 12, boxWidth: 14, boxHeight: 14,
+              generateLabels: (chart) => {
+                const data = chart.data;
+                return data.labels.map((label, i) => ({
+                  text: `${label}: ${data.datasets[0].data[i]}`,
+                  fillStyle: data.datasets[0].backgroundColor[i],
+                  strokeStyle: data.datasets[0].borderColor[i],
+                  lineWidth: 2,
+                  hidden: false,
+                  index: i
+                }));
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const pct = ((ctx.parsed / totalSpaceUses) * 100).toFixed(0);
+                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+              }
+            }
+          }
+        },
+        cutout: '58%'
       }
     });
   }
