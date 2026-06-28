@@ -26,6 +26,6 @@ jobs:
         run: cd functions && npm install
 
       - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --project appmoltures --non-interactive
+        run: firebase deploy --only functions --project appmoltures --non-interactive --debug 2>&1 | tail -60
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
