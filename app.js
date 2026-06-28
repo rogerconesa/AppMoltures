@@ -605,7 +605,7 @@ function renderEventSummary() {
         const total = getTotalPeople(r);
         const color = r.capacityColor || getCapColor(total);
         const date = parseDate(r.date);
-        return `<article class="event-card ${color}" onclick="openModal('','','${id}')">
+        return `<article class="event-card ${color}" onclick="openDayDetail('${r.date}')">
           <div class="event-date"><span>${date.getDate()}</span><strong>${MONTHS_CA[date.getMonth()].slice(0, 3)}</strong></div>
           <div class="event-main">
             <div class="event-title">${escapeHtml(getEventTitle(r))}</div>
@@ -693,7 +693,7 @@ function renderMonthCalendar() {
     const key = dateKey(date);
     const dayRes = getReservationsForDate(key);
     const chips = dayRes.length
-      ? dayRes.map(([id, r]) => `<div class="chip ${r.capacityColor||getCapColor(getTotalPeople(r))}" onclick="event.stopPropagation();openModal('','','${id}')">${escapeHtml(getFamilyInitials(r.family))}</div>`).join('')
+      ? dayRes.map(([id, r]) => `<div class="chip ${r.capacityColor||getCapColor(getTotalPeople(r))}" onclick="event.stopPropagation();openDayDetail('${key}')">${escapeHtml(getFamilyInitials(r.family))}</div>`).join('')
       : '';
     const ot = other ? ' other' : '';
     const we = isWeekend(date) ? ' weekend' : '';
