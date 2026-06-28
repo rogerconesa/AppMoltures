@@ -1,0 +1,24 @@
+name: Bulk Create Calendar Events
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bulk-create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install googleapis
+        run: npm install googleapis
+
+      - name: Create calendar events for all upcoming reservations
+        run: node bulk-create-events.js
+        env:
+          FIREBASE_DB_URL: "https://appmoltures-default-rtdb.europe-west1.firebasedatabase.app"
+          CALENDAR_ID: "0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com"
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+          FIREBASE_TOKEN_SECRET: ${{ secrets.FIREBASE_TOKEN }}
