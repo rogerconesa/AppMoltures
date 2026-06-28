@@ -743,31 +743,16 @@ function renderChartsSection(stats) {
     x: { ticks: { color: textColor, font: { family: 'Inter', size: 11 } }, grid: { color: gridColor } },
     y: { ticks: { color: textColor, font: { family: 'Inter', size: 11 } }, grid: { color: gridColor }, beginAtZero: true }
   };
-  const baseLegend = { labels: { color: textColor, font: { family: 'Inter', size: 12 }, padding: 14, boxWidth: 12 } };
+  const baseLegend = { labels: { color: textColor, font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 11, boxHeight: 11 } };
 
-  // Chart 1: events by family (bar)
+  // Chart 1: pie/donut of events by family with total count in center
   const famEntries = Object.entries(stats.byFamily).sort((a,b) => b[1].events - a[1].events);
-  if (famEntries.length) {
-    renderChart('chartByFamily', {
-      type: 'bar',
-      data: {
-        labels: famEntries.map(([id]) => getFamilyName(id).split('/')[0].trim()),
-        datasets: [{
-          label: 'Esdeveniments',
-          data: famEntries.map(([,v]) => v.events),
-          backgroundColor: famEntries.map((_, i) => BG_COLORS[i % BG_COLORS.length]),
-          borderColor: famEntries.map((_, i) => COLORS[i % COLORS.length]),
-          borderWidth: 2, borderRadius: 6
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScales }
-    });
-  }
-
-  // Chart 2: pie chart of events distribution by family (full names)
+  const totalEvents = famEntries.reduce((s,[,v]) => s + v.events, 0);
+  const centerFam = document.getElementById('chartFamilyPieCenter');
+  if (centerFam) { centerFam.innerHTML = `<span class="donut-num">${totalEvents}</span><span class="donut-label">events</span>`; }
   if (famEntries.length) {
     renderChart('chartFamilyPie', {
-      type: 'pie',
+      type: 'doughnut',
       data: {
         labels: famEntries.map(([id]) => getFamilyName(id)),
         datasets: [{
@@ -779,22 +764,26 @@ function renderChartsSection(stats) {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        cutout: '62%',
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { color: textColor, font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 12, boxHeight: 12 }
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => ` ${ctx.label}: ${ctx.parsed} event${ctx.parsed !== 1 ? 's' : ''}`
+            labels: { ...baseLegend.labels,
+              generateLabels: (chart) => chart.data.labels.map((label, i) => ({
+                text: `${label}: ${chart.data.datasets[0].data[i]}`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].borderColor[i],
+                lineWidth: 1.5, hidden: false, index: i
+              }))
             }
-          }
+          },
+          tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.parsed} event${ctx.parsed !== 1 ? 's' : ''}` } }
         }
       }
     });
   }
 
-  // Chart 3: timeline by month (line)
+  // Chart 2: timeline by month (line, dual axis)
   const monthEntries = Object.entries(stats.byMonth).sort((a,b) => a[0].localeCompare(b[0]));
   if (monthEntries.length) {
     const monthLabels = monthEntries.map(([m]) => {
@@ -822,10 +811,12 @@ function renderChartsSection(stats) {
     });
   }
 
-  // Chart 4: spaces doughnut - use all defined spaces, show count in tooltip
+  // Chart 3: spaces donut with total in center
   const spaceEntries = SPACES.map(s => [s.id, stats.bySpace[s.id] || 0]).filter(([,v]) => v > 0);
+  const totalSpaceUses = spaceEntries.reduce((s,[,v]) => s + v, 0);
+  const centerSpace = document.getElementById('chartBySpaceCenter');
+  if (centerSpace) { centerSpace.innerHTML = `<span class="donut-num">${totalSpaceUses}</span><span class="donut-label">usos</span>`; }
   if (spaceEntries.length) {
-    const totalSpaceUses = spaceEntries.reduce((sum, [,v]) => sum + v, 0);
     renderChart('chartBySpace', {
       type: 'doughnut',
       data: {
@@ -834,37 +825,26 @@ function renderChartsSection(stats) {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        cutout: '62%',
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { color: textColor, font: { family: 'Inter', size: 12 }, padding: 12, boxWidth: 14, boxHeight: 14,
-              generateLabels: (chart) => {
-                const data = chart.data;
-                return data.labels.map((label, i) => ({
-                  text: `${label}: ${data.datasets[0].data[i]}`,
-                  fillStyle: data.datasets[0].backgroundColor[i],
-                  strokeStyle: data.datasets[0].borderColor[i],
-                  lineWidth: 2,
-                  hidden: false,
-                  index: i
-                }));
-              }
+            labels: { ...baseLegend.labels,
+              generateLabels: (chart) => chart.data.labels.map((label, i) => ({
+                text: `${label}: ${chart.data.datasets[0].data[i]}`,
+                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                strokeStyle: chart.data.datasets[0].borderColor[i],
+                lineWidth: 1.5, hidden: false, index: i
+              }))
             }
           },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const pct = ((ctx.parsed / totalSpaceUses) * 100).toFixed(0);
-                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
-              }
-            }
-          }
-        },
-        cutout: '58%'
+          tooltip: { callbacks: { label: (ctx) => { const pct = ((ctx.parsed/totalSpaceUses)*100).toFixed(0); return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`; } } }
+        }
       }
     });
   }
 }
+
 
 function renderHistoricTable(entries) {
   const el = document.getElementById('historicTable');
