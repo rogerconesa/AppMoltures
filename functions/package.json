@@ -1,6 +1,6 @@
 {
   "name": "appmoltures-functions",
-  "description": "Firebase Cloud Functions per AppMoltures",
+  "description": "Firebase Cloud Functions per AppMoltures - Google Calendar sync",
   "scripts": {
     "deploy": "firebase deploy --only functions"
   },
