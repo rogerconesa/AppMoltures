@@ -29,15 +29,16 @@ jobs:
         run: cd functions && npm install
 
       - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --project appmoltures --non-interactive
+        run: firebase deploy --only functions --project appmoltures --non-interactive --debug 2>&1 | tail -80 | tee /tmp/deploy-out.txt; exit ${PIPESTATUS[0]}
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
-      - name: Allow unauthenticated invocations (public CORS)
+      - name: Save deploy output
+        if: always()
         run: |
-          gcloud auth activate-service-account --key-file=<(echo '${{ secrets.GOOGLE_SA_JSON }}')
-          gcloud functions add-invoker-policy-binding calendarEvent \
-            --region=europe-west1 \
-            --member="allUsers" \
-            --project=appmoltures-500809
-        continue-on-error: true
+          cp /tmp/deploy-out.txt deploy-debug.txt 2>/dev/null || echo "no output" > deploy-debug.txt
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add deploy-debug.txt
+          git diff --staged --quiet || git commit -m "chore: deploy debug log"
+          git push
