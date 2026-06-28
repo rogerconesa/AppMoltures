@@ -89,7 +89,6 @@
           <h3 class="historic-title">Històric d'esdeveniments</h3>
           <p class="historic-sub">Tots els esdeveniments passats, actuals i futurs amb estadístiques.</p>
         </div>
-        <button class="btn-primary" onclick="openModal()">+ Nou</button>
       </div>
 
       <div class="historic-filters-wrap" id="historicFilters"></div>
@@ -101,11 +100,10 @@
         <div class="charts-grid">
           <div class="chart-card">
             <div class="chart-card-title">Esdeveniments per família</div>
-            <div class="chart-wrap"><canvas id="chartByFamily"></canvas></div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-card-title">Distribució per família</div>
-            <div class="chart-wrap"><canvas id="chartFamilyPie"></canvas></div>
+            <div class="chart-wrap chart-donut-wrap">
+              <canvas id="chartFamilyPie"></canvas>
+              <div class="chart-donut-center" id="chartFamilyPieCenter"></div>
+            </div>
           </div>
           <div class="chart-card chart-card-wide">
             <div class="chart-card-title">Activitat per mes</div>
@@ -113,7 +111,10 @@
           </div>
           <div class="chart-card">
             <div class="chart-card-title">Ús d'espais</div>
-            <div class="chart-wrap"><canvas id="chartBySpace"></canvas></div>
+            <div class="chart-wrap chart-donut-wrap">
+              <canvas id="chartBySpace"></canvas>
+              <div class="chart-donut-center" id="chartBySpaceCenter"></div>
+            </div>
           </div>
         </div>
       </div>
