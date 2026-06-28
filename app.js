@@ -399,9 +399,18 @@ async function saveReservation() {
   const isEdit = !!editingId;
   const notifText = isEdit ? 'Esdeveniment actualitzat' : 'Esdeveniment desat';
 
-  // Recuperem el googleEventId existent de la reserva original ABANS de sobreescriure
-  const existingGcalId = (isEdit && reservations[id]) ? reservations[id].googleEventId : null;
+  // Recuperem el googleEventId des de Firebase directament (font de veritat)
+  let existingGcalId = null;
+  if (isEdit) {
+    try {
+      const snap = await db.ref('reservations/' + id + '/googleEventId').once('value');
+      existingGcalId = snap.val() || null;
+    } catch (e) { existingGcalId = (reservations[id] && reservations[id].googleEventId) || null; }
+  }
   if (existingGcalId) reservation.googleEventId = existingGcalId;
+
+  // Afegim firebaseId perquè la Cloud Function pugui desar el googleEventId
+  reservation.firebaseId = id;
 
   closeModal();
   showView('summary');
@@ -412,15 +421,11 @@ async function saveReservation() {
   try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
 
   // Sincronitza amb Google Calendar
-  console.log('[Calendar] isEdit:', isEdit, 'existingGcalId:', existingGcalId);
   const gcalAction = (isEdit && existingGcalId) ? 'update' : 'create';
-  console.log('[Calendar] action:', gcalAction);
   const newGoogleEventId = await syncCalendar(gcalAction, reservation, existingGcalId);
-  console.log('[Calendar] result googleEventId:', newGoogleEventId);
   if (newGoogleEventId) {
     reservation.googleEventId = newGoogleEventId;
     reservations[id] = reservation;
-    // Sempre guardem (tant si és nou ID com si és el mateix actualitzat)
     try { await db.ref('reservations/' + id + '/googleEventId').set(newGoogleEventId); } catch (e) {}
   }
 
