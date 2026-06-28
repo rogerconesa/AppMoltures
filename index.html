@@ -2,7 +2,7 @@
 <html lang="ca">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AppMoltures</title>
 <meta name="theme-color" content="#2563eb">
 <meta name="description" content="Gestió col·laborativa d'esdeveniments familiars a les Moltures.">
@@ -10,17 +10,20 @@
 <meta name="apple-mobile-web-app-title" content="AppMoltures">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Aplicar tema abans de renderitzar (evita flash)
+  document.documentElement.dataset.theme = localStorage.getItem('appmoltures-theme') || 'light';
+</script>
 </head>
 <body>
+
 <header>
   <div class="header-inner">
-      <div class="brand">
+    <div class="brand">
       <div class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 220 54" role="img">
           <path class="logo-line" d="M5 49H212" />
@@ -37,12 +40,6 @@
     </div>
     <div class="header-right">
       <div class="sync-pill"><span class="sync-dot"></span><span id="syncStatus">Connectant...</span></div>
-      <nav>
-        <button id="nav-summary" class="active" onclick="showView('summary')">Resum</button>
-        <button id="nav-month" onclick="showView('month')">Mes</button>
-        <button id="nav-historic" onclick="showView('historic')">Històric</button>
-      </nav>
-      <button class="btn-primary btn-header" onclick="openModal()">+ Nou esdeveniment</button>
       <button class="btn-icon btn-dark" onclick="toggleTheme()" title="Mode clar/fosc" id="themeToggle">☾</button>
       <button class="btn-icon btn-info" onclick="showInfo()" title="Informació">i</button>
       <button class="btn-icon btn-fb" onclick="showFeedback()" title="Propostes i millores">?</button>
@@ -50,22 +47,24 @@
   </div>
 </header>
 
-<main>
+<main id="screen-app">
   <div class="bar">
     <span class="bar-text">Esdeveniments col·laboratius en temps real</span>
   </div>
 
+  <!-- RESUM -->
   <section class="weekend-spotlight view active" id="view-summary">
     <div class="section-head">
       <div>
         <h3>Esdeveniments programats</h3>
         <p>Resum ràpid de tots els esdeveniments futurs ordenats per data.</p>
       </div>
-      <button class="btn-primary" onclick="openModal()">+ Nou esdeveniment</button>
+      <button class="btn-primary" onclick="openModal()">+ Nou</button>
     </div>
     <div class="event-summary" id="eventSummary"></div>
   </section>
 
+  <!-- MES -->
   <section class="view" id="view-month">
     <div class="calendar-shell">
       <div class="toolbar">
@@ -75,47 +74,38 @@
           <button class="btn-nav" onclick="monthOffset++; renderMonthCalendar()">&#8250;</button>
           <div class="toolbar-title" id="monthTitle"></div>
         </div>
-        <button class="btn-primary" onclick="openModal()">+ Nou esdeveniment</button>
+        <button class="btn-primary" onclick="openModal()">+ Nou</button>
       </div>
       <div class="month-grid" id="monthGrid"></div>
     </div>
   </section>
 
-  <!-- HISTORIC VIEW -->
+  <!-- HISTÒRIC -->
   <section class="view" id="view-historic">
     <div class="historic-shell">
 
-      <!-- Filters bar -->
       <div class="historic-header">
         <div>
           <h3 class="historic-title">Històric d'esdeveniments</h3>
           <p class="historic-sub">Tots els esdeveniments passats, actuals i futurs amb estadístiques.</p>
         </div>
-        <button class="btn-primary" onclick="openModal()">+ Nou esdeveniment</button>
+        <button class="btn-primary" onclick="openModal()">+ Nou</button>
       </div>
 
-      <div class="historic-filters-wrap" id="historicFilters">
-        <!-- rendered by JS -->
-      </div>
+      <div class="historic-filters-wrap" id="historicFilters"></div>
 
-      <!-- KPIs -->
-      <div id="historicKPIs">
-        <!-- rendered by JS -->
-      </div>
+      <div id="historicKPIs"></div>
 
-      <!-- Charts grid -->
       <div class="charts-section">
-        <div class="section-head">
-          <h3>Quadre de comandaments</h3>
-        </div>
+        <div class="section-head"><h3>Quadre de comandaments</h3></div>
         <div class="charts-grid">
           <div class="chart-card">
             <div class="chart-card-title">Esdeveniments per família</div>
             <div class="chart-wrap"><canvas id="chartByFamily"></canvas></div>
           </div>
           <div class="chart-card">
-            <div class="chart-card-title">Persones per família</div>
-            <div class="chart-wrap"><canvas id="chartPeopleByFamily"></canvas></div>
+            <div class="chart-card-title">Distribució per família</div>
+            <div class="chart-wrap"><canvas id="chartFamilyPie"></canvas></div>
           </div>
           <div class="chart-card chart-card-wide">
             <div class="chart-card-title">Activitat per mes</div>
@@ -128,34 +118,30 @@
         </div>
       </div>
 
-      <!-- Table -->
       <div class="historic-table-section">
-        <div class="section-head">
-          <h3>Llistat complet</h3>
-        </div>
-        <div id="historicTable">
-          <!-- rendered by JS -->
-        </div>
+        <div class="section-head"><h3>Llistat complet</h3></div>
+        <div id="historicTable"></div>
       </div>
 
     </div>
   </section>
 
+  <!-- LLEGENDA -->
   <section class="legend-section">
     <div class="section-head">
       <div>
-        <h3>Referències dels esdeveniments</h3>
-        <p>Colors per aforament, espais disponibles i famílies que poden crear esdeveniments.</p>
+        <h3>Referències</h3>
+        <p>Colors per aforament, espais i famílies.</p>
       </div>
     </div>
     <div class="legend-blocks">
       <div class="legend-block">
         <h4>Aforament</h4>
         <div class="status-pills">
-          <span class="status-pill blue">Blau: fins a 6 persones</span>
-          <span class="status-pill yellow">Groc: fins a 12 persones</span>
-          <span class="status-pill red">Vermell: fins a 25 persones</span>
-          <span class="status-pill purple">Morat: més de 25 persones</span>
+          <span class="status-pill blue">Fins a 6</span>
+          <span class="status-pill yellow">Fins a 12</span>
+          <span class="status-pill red">Fins a 25</span>
+          <span class="status-pill purple">Més de 25</span>
         </div>
       </div>
       <div class="legend-block">
@@ -170,6 +156,27 @@
   </section>
 </main>
 
+<!-- BOTTOM NAV -->
+<nav id="bottom-nav">
+  <button class="nav-tab active" data-view="summary" onclick="showView('summary')">
+    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+    <span>Resum</span>
+  </button>
+  <button class="nav-tab" data-view="month" onclick="showView('month')">
+    <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Mes</span>
+  </button>
+  <button class="nav-tab" data-view="historic" onclick="showView('historic')">
+    <svg class="nav-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>Històric</span>
+  </button>
+  <button class="nav-tab" data-view="new" onclick="openModal()">
+    <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span>Nou</span>
+  </button>
+</nav>
+
+<!-- MODAL NOU/EDITAR ESDEVENIMENT -->
 <div class="modal-overlay" id="modalOverlay" onclick="if (event.target === this) closeModal()">
   <div class="modal">
     <div class="modal-title" id="modalTitle">Nou esdeveniment</div>
@@ -182,7 +189,7 @@
       <input class="form-control" type="date" id="inputDate">
     </div>
     <div class="form-group">
-      <label class="form-label" for="inputTimeRange">Rang d'hores d'ocupació opcional</label>
+      <label class="form-label" for="inputTimeRange">Rang d'hores (opcional)</label>
       <input class="form-control" type="text" id="inputTimeRange" placeholder="Ex: 11:00 - 18:00">
     </div>
     <div class="form-group">
@@ -192,27 +199,28 @@
     <div class="form-group">
       <div class="form-label">Espais</div>
       <div class="picker-grid" id="spaceGrid"></div>
-      <div class="helper-text">Pots indicar barbacoa, piscina o els dos espais dins del mateix esdeveniment.</div>
+      <div class="helper-text">Pots triar un o més espais per al mateix esdeveniment.</div>
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label" for="inputAdults">Adults aproximats</label>
+        <label class="form-label" for="inputAdults">Adults aprox.</label>
         <input class="form-control" type="number" id="inputAdults" min="0" step="1" placeholder="Ex: 6">
       </div>
       <div class="form-group">
-        <label class="form-label" for="inputChildren">Nens aproximats</label>
+        <label class="form-label" for="inputChildren">Nens aprox.</label>
         <input class="form-control" type="number" id="inputChildren" min="0" step="1" placeholder="Ex: 4">
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn-share" id="whatsappButton" style="display:none" onclick="shareFromModal()">Comparteix per WhatsApp</button>
-      <button class="btn-save" onclick="saveReservation()">Desar esdeveniment</button>
+      <button class="btn-save" onclick="saveReservation()">Desar</button>
       <button class="btn-delete" id="deleteButton" style="display:none" onclick="handleDelete()">Eliminar</button>
       <button class="btn-cancel" onclick="closeModal()">Cancel·lar</button>
     </div>
   </div>
 </div>
 
+<!-- MODAL DETALL DIA -->
 <div class="modal-overlay" id="dayDetailOverlay" onclick="if (event.target === this) closeDayDetail()">
   <div class="modal">
     <div class="modal-title" id="dayDetailTitle">Detall del dia</div>
@@ -224,18 +232,15 @@
   </div>
 </div>
 
+<!-- MODAL INFO -->
 <div class="modal-overlay" id="infoOverlay" onclick="if (event.target === this) closeInfo()">
   <div class="modal modal-sm">
     <div class="modal-title">Com funciona AppMoltures</div>
     <div class="info-body">
-      <p><strong>AppMoltures</strong> és un calendari compartit per gestionar esdeveniments d'espais (barbacoa, piscina, etc.) entre familiars o amics.</p>
+      <p><strong>AppMoltures</strong> és un calendari compartit per gestionar esdeveniments d'espais (barbacoa, piscina...) entre familiars o amics.</p>
       <div class="info-section">
         <h4>Esdeveniments</h4>
         <p>Cada esdeveniment té una data, un títol, qui el fa, els espais ocupats i un rang d'hores opcional.</p>
-      </div>
-      <div class="info-section">
-        <h4>Espais</h4>
-        <p>En crear un esdeveniment, pots triar un o més espais (barbacoa, piscina...).</p>
       </div>
       <div class="info-section">
         <h4>Sincronització</h4>
@@ -258,6 +263,7 @@
   </div>
 </div>
 
+<!-- MODAL FEEDBACK -->
 <div class="modal-overlay" id="feedbackOverlay" onclick="if (event.target === this) closeFeedback()">
   <div class="modal modal-fb">
     <div class="modal-title">Propostes i millores</div>
@@ -272,6 +278,7 @@
   </div>
 </div>
 
+<!-- MODAL INSTAL·LACIÓ -->
 <div class="modal-overlay" id="installOverlay">
   <div class="modal modal-sm">
     <div class="modal-title">Vols tenir AppMoltures com una app?</div>
@@ -285,7 +292,7 @@
         <h4>iPhone</h4>
         <p>A Safari, toca el botó de compartir i tria <strong>Afegir a pantalla d'inici</strong>.</p>
       </div>
-      <label class="check-row"><input type="checkbox" id="dontShowInstall"> No tornar a mostrar aquest missatge</label>
+      <label class="check-row"><input type="checkbox" id="dontShowInstall"> No tornar a mostrar</label>
     </div>
     <div class="modal-actions">
       <button class="btn-save" onclick="closeInstallPrompt()">Entesos</button>
@@ -302,7 +309,7 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch((err) => console.warn('Service worker registration failed:', err));
+      navigator.serviceWorker.register('./service-worker.js').catch((err) => console.warn('SW error:', err));
     });
   }
 </script>
