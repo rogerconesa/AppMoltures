@@ -13,21 +13,155 @@ const db = firebase.database();
 const reservationsRef = db.ref('reservations');
 const feedbackRef = db.ref('feedback');
 
-// ── Google Calendar Cloud Function ──────────────────────────
-const CALENDAR_FUNCTION_URL = 'https://europe-west1-appmoltures.cloudfunctions.net/calendarEvent';
+// ── Google Calendar — Direct API (Service Account + Web Crypto JWT) ──────────
+
+const GCAL_SA = {
+  client_email: 'appmoltures-calendar@appmoltures-500809.iam.gserviceaccount.com',
+  private_key: `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDDyDUV1GyrKqKD
+fWPw109RLHwDZ78uMMw215BMj/6PG1S1mrEo6BIfhDqq0jZ7dykQaZgzrEYiptbz
+jfIdJi4fbbJPf8A3DrxK0ddvhvCFp1bvvtWLVN87ia4LziDzdZBv0Ec9m6jndf8F
+wn1mCIRYAgYZlvKaltpC4XfZxOhRukhM9MEZVbK01XWB9ouUdNljiWh8k0qLo67U
+5gkQTS3F+T0wSze4HQeOl9wQvMaIOhPGy/WOReQLjLcbHhw5wSS9whV0rQ/d0sdP
+8g6okZTIhSJNT1+20WRK0eb36oqXG1OXDQrkq8KKrpAwG1IkR2XQjdc5ayiGmJ1W
+VOzUBQ4jAgMBAAECggEAHoAXs7rADTBwrfRrDUULFcsiLMj3seNR79ny9dfZoVjG
+1ciaKz8a568KvBGmAY5lptQUgo78RCoNbaxiQ3lEZoqz5Ipd8Gs1bqCJ+VV32L03
+oCpGNqp2YTOd7402zpw08BPDWCKNFItqO0RP6IU7fOx1H9JyIXQ5NNckUUL0VcWI
+68HQXoJfMc/ihbAXkU6jUZiYHB2hcydiWNPWRyCq/yaOj03DJ6Zp1IiOTf/b7J4O
+09ROD0vAsaE8rtRCT2g6QziG2kfyveeSJlR7+l40GqSjjdmJNaq7995DBGEWFjQh
+6Tx/eKOjnEtju0KZDBbjclg+dEgst1Al8xftku3w+QKBgQDpvbu9swzsKTE3Rllj
+/NqMb5CcsjOVpzTYLERIY6QWl+epg10K3UeKKaH5K4F3HOnQDjI03m1qWmi4SPvK
+a92IA1/jmmF2CvNSOrOBpvnVJ78Cm6orwU30LgAKN63ZwurnV2fk9Lhji7Xmq8rk
+IUB7+vxmETp5hquA6YHcy0kwmQKBgQDWbRZMrZ0G6fFA1ra6T25J41zTx5a71sjO
+xZiNVAepcLwLbGYc5+Zflkmu3JGYcooYOIQKn35pCIdo3FlT/4wFUQ7GvOBJ0AGx
+wYCr1YVZZbkZ8aX2SObz5fPPnwhSFYwLR1p6KUImrXTJF/hYjE7bmEUxeRAMzSWM
+xmh5PlMeGwKBgQDM2TecPTtqDX/QjZryAjwXL/9xFMwYr/2kJseBGbJJCsBA05vL
+VbrI30vQ78v69CAF8ysVIoqJ1spIF85zzKzN8wcqlbYsmdQ9kKyZSBlUMg043+v3
+hOYoxdfLHJkEa8srDHNFOSQQOfUlQBIEdQ/qmEBzw02YC+pqhDsHojF2oQKBgDRh
+zdLJjtTDjcYzLcxx3xV5z5GE7pPQspmgt9W+s2h3O9jmkEN7e1HamwF2rLK7OHUW
+SVt2/yCVjs7VFZVplkEuPhfayEf/4ooUJWTU8pCWQxPNbqetw43NnTQZO6Uh0mZm
+9fll3t0n/qGpk2e+Tv1iQ3UEiCE4dHXhemA0E4YFAoGAXApDDvYq6OtIRqXgcrfA
+RoAHHIPl3iHBlp0AVCHwknHJmtY9DAgN5rU851Y7g3jA0iWe6xWxMn5GgKsqKXwZ
+3edXmmJQ+xMqqicGvK5nidvrjsY9vtvIdkJWijaDq6mLCJ9b9v3frGTcyjMrNUm5
+x+SZkhUsG81kUC+/lmXLX4Q=
+-----END PRIVATE KEY-----`,
+};
+
+const GCAL_CALENDAR_ID = '0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar';
+
+let _gcalTokenCache = null;
+
+// Sign a JWT with the service account private key using Web Crypto API
+async function signJWT(payload) {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const b64 = obj => btoa(JSON.stringify(obj)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const b64raw = arr => btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+  const msg = `${b64(header)}.${b64(payload)}`;
+
+  // Import PEM private key
+  const pem = GCAL_SA.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
+  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    'pkcs8', der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(msg));
+  return `${msg}.${b64raw(sig)}`;
+}
+
+async function getGCalToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (_gcalTokenCache && _gcalTokenCache.exp > now + 60) return _gcalTokenCache.token;
+
+  const jwt = await signJWT({
+    iss: GCAL_SA.client_email,
+    scope: GCAL_SCOPE,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  });
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+  const data = await resp.json();
+  if (!data.access_token) throw new Error('No access_token: ' + JSON.stringify(data));
+  _gcalTokenCache = { token: data.access_token, exp: now + 3600 };
+  return data.access_token;
+}
+
+function reservationToGCalEvent(r) {
+  const MONTHS_CA = ['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'];
+  const DAY_NAMES = ['Diumenge','Dilluns','Dimarts','Dimecres','Dijous','Divendres','Dissabte'];
+  const date = new Date(r.date + 'T00:00:00');
+  const dayName = DAY_NAMES[date.getDay()];
+  const dateLabel = `${dayName}, ${date.getDate()} ${MONTHS_CA[date.getMonth()]} ${date.getFullYear()}`;
+  const familyLabel = Array.isArray(r.family) ? getFamiliesLabel(r.family) : getFamilyName(r.family);
+  const spacesLabel = getSpacesLabel(r.spaces);
+  const total = (Number(r.adults)||0) + (Number(r.children)||0);
+
+  const description = [
+    `👨‍👩‍👧 Família: ${familyLabel}`,
+    `🏠 Espais: ${spacesLabel}`,
+    `👥 Persones: ${r.adults} adults · ${r.children} nens (${total} total)`,
+    r.timeRange ? `🕐 Horari: ${r.timeRange}` : '',
+    '',
+    `📅 ${dateLabel}`,
+    '',
+    "📱 Creat des d'AppMoltures",
+  ].filter(s => s !== null).join('\n');
+
+  const summary = r.title || `${familyLabel} · ${spacesLabel}`;
+
+  if (r.timeRange && r.timeRange.includes('-')) {
+    const parts = r.timeRange.split('-').map(s => s.trim());
+    return { summary, description,
+      start: { dateTime: `${r.date}T${parts[0]}:00`, timeZone: 'Europe/Madrid' },
+      end:   { dateTime: `${r.date}T${parts[1]}:00`, timeZone: 'Europe/Madrid' } };
+  }
+  const nextDay = new Date(date);
+  nextDay.setDate(nextDay.getDate() + 1);
+  return { summary, description,
+    start: { date: r.date },
+    end:   { date: nextDay.toISOString().split('T')[0] } };
+}
 
 async function syncCalendar(action, reservation, googleEventId) {
   try {
-    const body = { action, reservation };
-    if (googleEventId) body.googleEventId = googleEventId;
-    const resp = await fetch(CALENDAR_FUNCTION_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) { console.warn('Calendar sync error:', await resp.text()); return null; }
-    const data = await resp.json();
-    return data.googleEventId || null;
+    const token = await getGCalToken();
+    const calBase = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events`;
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const eventBody = reservationToGCalEvent(reservation);
+
+    let resp, data;
+
+    if (action === 'create') {
+      resp = await fetch(calBase, { method: 'POST', headers, body: JSON.stringify(eventBody) });
+      data = await resp.json();
+      if (!resp.ok) throw new Error(data.error?.message || resp.status);
+      return data.id;
+
+    } else if (action === 'update') {
+      resp = await fetch(`${calBase}/${googleEventId}`, { method: 'PUT', headers, body: JSON.stringify(eventBody) });
+      if (resp.status === 404) {
+        // Event not found — create it instead
+        resp = await fetch(calBase, { method: 'POST', headers, body: JSON.stringify(eventBody) });
+      }
+      data = await resp.json();
+      if (!resp.ok) throw new Error(data.error?.message || resp.status);
+      return data.id;
+
+    } else if (action === 'delete') {
+      resp = await fetch(`${calBase}/${googleEventId}`, { method: 'DELETE', headers });
+      if (!resp.ok && resp.status !== 404) throw new Error(resp.status);
+      return googleEventId;
+    }
   } catch (e) {
     console.warn('Calendar sync failed:', e.message);
     return null;
@@ -408,9 +542,6 @@ async function saveReservation() {
     } catch (e) { existingGcalId = (reservations[id] && reservations[id].googleEventId) || null; }
   }
   if (existingGcalId) reservation.googleEventId = existingGcalId;
-
-  // Afegim firebaseId perquè la Cloud Function pugui desar el googleEventId
-  reservation.firebaseId = id;
 
   closeModal();
   showView('summary');
