@@ -1,6 +1,18 @@
 Verifying calendar access...
 Service account: appmoltures-calendar@appmoltures-500809.iam.gserviceaccount.com
 Calendar ID: 0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com
-✗ Cannot access calendar: Not Found
-  → You must share the calendar with: appmoltures-calendar@appmoltures-500809.iam.gserviceaccount.com
-  → Permission needed: "Make changes to events"
+✓ Calendar accessible: Moltures
+
+Fetching reservations from Firebase...
+Found 3 upcoming reservations
+  CREATE 2026-07-18 "Festa 40 - Bernat i Anna"
+    ✓ Created: mmdglieb17rs7b80rb9kr2odf0
+    ✓ Saved to Firebase
+  CREATE 2026-07-25 "Dinar · Glòria"
+    ✓ Created: b33nq9kkls856snfj8tisi7hf4
+    ✓ Saved to Firebase
+  CREATE 2026-09-19 "DMS 40 Anna"
+    ✓ Created: rqorqfc86o5lv19te6r0uh3le0
+    ✓ Saved to Firebase
+
+Done! Created: 3 | Skipped: 0 | Errors: 0
