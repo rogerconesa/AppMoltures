@@ -1,0 +1,80 @@
+[2026-06-28T11:31:26.058Z] > refreshing access token with scopes: []
+[2026-06-28T11:31:26.059Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[2026-06-28T11:31:26.059Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[2026-06-28T11:31:26.130Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[2026-06-28T11:31:26.131Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[2026-06-28T11:31:26.131Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures:testIamPermissions [none]
+[2026-06-28T11:31:26.131Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures:testIamPermissions  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.132Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-06-28T11:31:26.134Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[2026-06-28T11:31:26.134Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[2026-06-28T11:31:26.262Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures:testIamPermissions 200
+[2026-06-28T11:31:26.262Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[2026-06-28T11:31:26.262Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.263Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.263Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/appmoltures/serviceAccounts/appmoltures@appspot.gserviceaccount.com:testIamPermissions [none]
+[2026-06-28T11:31:26.263Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/appmoltures/serviceAccounts/appmoltures@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[2026-06-28T11:31:26.404Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/appmoltures/serviceAccounts/appmoltures@appspot.gserviceaccount.com:testIamPermissions 200
+[2026-06-28T11:31:26.405Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/appmoltures/serviceAccounts/appmoltures@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+
+=== Deploying to 'appmoltures'...
+
+i  deploying functions 
+[2026-06-28T11:31:26.407Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.407Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.407Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudresourcemanager.googleapis.com [none]
+[2026-06-28T11:31:26.407Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudresourcemanager.googleapis.com  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.663Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudresourcemanager.googleapis.com 200
+[2026-06-28T11:31:26.663Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudresourcemanager.googleapis.com [omitted]
+[2026-06-28T11:31:26.664Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.665Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.665Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures [none]
+[2026-06-28T11:31:26.741Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures 200
+[2026-06-28T11:31:26.741Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/appmoltures {"projectNumber":"703957690397","projectId":"appmoltures","lifecycleState":"ACTIVE","name":"AppMoltures","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-05-09T09:57:45.712Z"}
+i  functions: preparing codebase default for deployment 
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[2026-06-28T11:31:26.742Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.742Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.743Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.743Z] Checked if tokens are valid: true, expires at: 1782649885131
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[2026-06-28T11:31:26.743Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.743Z] Checked if tokens are valid: true, expires at: 1782649885131
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[2026-06-28T11:31:26.743Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.744Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.744Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudfunctions.googleapis.com [none]
+[2026-06-28T11:31:26.744Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudfunctions.googleapis.com  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.744Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/runtimeconfig.googleapis.com [none]
+[2026-06-28T11:31:26.744Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/runtimeconfig.googleapis.com  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.746Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com [none]
+[2026-06-28T11:31:26.746Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.747Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com [none]
+[2026-06-28T11:31:26.747Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.920Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudfunctions.googleapis.com 200
+[2026-06-28T11:31:26.920Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudfunctions.googleapis.com [omitted]
+✔  functions: required API cloudfunctions.googleapis.com is enabled 
+[2026-06-28T11:31:26.922Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/runtimeconfig.googleapis.com 200
+[2026-06-28T11:31:26.922Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/runtimeconfig.googleapis.com [omitted]
+[2026-06-28T11:31:26.932Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com 200
+[2026-06-28T11:31:26.932Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com [omitted]
+⚠  functions: missing required API cloudbuild.googleapis.com. Enabling now... 
+[2026-06-28T11:31:26.932Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.932Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.932Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com:enable [none]
+[2026-06-28T11:31:26.933Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com:enable  x-goog-user-project=appmoltures
+[2026-06-28T11:31:26.936Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com 200
+[2026-06-28T11:31:26.936Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com [omitted]
+⚠  artifactregistry: missing required API artifactregistry.googleapis.com. Enabling now... 
+[2026-06-28T11:31:26.936Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.936Z] Checked if tokens are valid: true, expires at: 1782649885131
+[2026-06-28T11:31:26.936Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com:enable [none]
+[2026-06-28T11:31:26.936Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com:enable  x-goog-user-project=appmoltures
+[2026-06-28T11:31:27.152Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com:enable 400
+[2026-06-28T11:31:27.152Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/artifactregistry.googleapis.com:enable [omitted]
+
+Error: Your project appmoltures must be on the Blaze (pay-as-you-go) plan to complete this command. Required API artifactregistry.googleapis.com can't be enabled until the upgrade is complete. To upgrade, visit the following URL:
+
+https://console.firebase.google.com/project/appmoltures/usage/details
+[2026-06-28T11:31:27.156Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com:enable 400
+[2026-06-28T11:31:27.156Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/appmoltures/services/cloudbuild.googleapis.com:enable [omitted]
