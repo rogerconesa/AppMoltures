@@ -1,0 +1,10 @@
+Fetching reservations from Firebase...
+Found 3 upcoming reservations (from 2026-06-28)
+  CREATE 2026-07-18 "Festa 40 - Bernat i Anna"
+  ERROR 2026-07-18 "Festa 40 - Bernat i Anna": Not Found
+  CREATE 2026-07-25 "Dinar · Glòria"
+  ERROR 2026-07-25 "Dinar · Glòria": Not Found
+  CREATE 2026-09-19 "DMS 40 Anna"
+  ERROR 2026-09-19 "DMS 40 Anna": Not Found
+
+Done! Created: 0 | Skipped: 0 | Errors: 3
