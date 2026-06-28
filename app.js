@@ -707,7 +707,32 @@ function renderMonthCalendar() {
 function getDayDetailCardHTML(id, r) {
   const total = getTotalPeople(r);
   const color = r.capacityColor || getCapColor(total);
-  return `<div class="day-item ${color}"><div class="di-top"><div><div class="di-title">${escapeHtml(getEventTitle(r))}</div><div class="di-sub">${escapeHtml(Array.isArray(r.family) ? getFamiliesLabel(r.family) : getFamilyName(r.family))} · ${escapeHtml(getEventTimeLabel(r))}</div><div class="di-sub">${escapeHtml(getSpacesLabel(r.spaces))}</div></div><div class="di-actions"><button class="btn-soft" onclick="closeDayDetail();openModal('','','${id}')">Editar</button></div></div><div class="di-sub">${r.adults} adults · ${r.children} nens</div><div class="di-total">${total} persones · ${escapeHtml(getCapLabel(total))}</div></div>`;
+  const date = parseDate(r.date);
+  const familyLabel = Array.isArray(r.family) ? getFamiliesLabel(r.family) : getFamilyName(r.family);
+  const gcalBadge = r.googleEventId
+    ? `<span class="dd-gcal-badge" title="Sincronitzat amb Google Calendar">📅</span>`
+    : '';
+  return `<article class="dd-event-card ${color}">
+    <div class="dd-event-left">
+      <div class="event-date">
+        <span>${date.getDate()}</span>
+        <strong>${MONTHS_CA[date.getMonth()].slice(0,3)}</strong>
+      </div>
+    </div>
+    <div class="dd-event-body">
+      <div class="dd-event-title">${escapeHtml(getEventTitle(r))} ${gcalBadge}</div>
+      <div class="dd-event-meta">${escapeHtml(formatDateLabel(date))}${r.timeRange ? ` · <strong>${escapeHtml(r.timeRange)}</strong>` : ''}</div>
+      <div class="dd-event-meta">${escapeHtml(familyLabel)}</div>
+      <div class="dd-event-meta">${escapeHtml(getSpacesLabel(r.spaces))}</div>
+      <div class="dd-event-total">${r.adults} adults · ${r.children} nens · <strong>${total} persones</strong> · ${escapeHtml(getCapLabel(total))}</div>
+    </div>
+    <div class="dd-event-actions">
+      <button class="btn-soft dd-edit-btn" onclick="closeDayDetail();openModal('','','${id}')" title="Editar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar
+      </button>
+    </div>
+  </article>`;
 }
 
 function openDayDetail(dateStr) {
