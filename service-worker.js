@@ -1,4 +1,4 @@
-const CACHE_NAME = 'appmoltures-v11';
+const CACHE_NAME = 'appmoltures-v12';
 const APP_SHELL = [
   './',
   './index.html',
