@@ -3,11 +3,17 @@ name: Bulk Create Calendar Events
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   bulk-create:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -16,7 +22,7 @@ jobs:
         run: npm install googleapis
 
       - name: Create calendar events for all upcoming reservations
-        run: node bulk-create-events.js 2>&1 | tee /tmp/calendar-output.txt
+        run: node bulk-create-events.js 2>&1 | tee calendar-sync-log.txt
         env:
           FIREBASE_DB_URL: "https://appmoltures-default-rtdb.europe-west1.firebasedatabase.app"
           CALENDAR_ID: "0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com"
@@ -24,9 +30,8 @@ jobs:
 
       - name: Save output to repo
         run: |
-          cp /tmp/calendar-output.txt calendar-sync-log.txt
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add calendar-sync-log.txt
-          git commit -m "chore: calendar sync log" || echo "Nothing to commit"
+          git diff --staged --quiet || git commit -m "chore: calendar sync log"
           git push
