@@ -142,11 +142,11 @@ function getCapLabel(total) {
   return 'Aforament molt alt';
 }
 
-function getFamilyInitials(id) {
-  return getFamilyName(id)
-    .split(/[\/\s]+/)
-    .filter(Boolean)
-    .map((part) => part[0])
+function getFamilyInitials(family) {
+  // Handles both string ID and array of IDs
+  const ids = Array.isArray(family) ? family : [family];
+  return ids
+    .map(id => getFamilyName(id).split(/[\/\s]+/).filter(Boolean).map(p => p[0]).join(''))
     .join('')
     .slice(0, 3)
     .toUpperCase();
