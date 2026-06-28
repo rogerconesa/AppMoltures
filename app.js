@@ -412,11 +412,15 @@ async function saveReservation() {
   try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
 
   // Sincronitza amb Google Calendar
+  console.log('[Calendar] isEdit:', isEdit, 'existingGcalId:', existingGcalId);
   const gcalAction = (isEdit && existingGcalId) ? 'update' : 'create';
+  console.log('[Calendar] action:', gcalAction);
   const newGoogleEventId = await syncCalendar(gcalAction, reservation, existingGcalId);
-  if (newGoogleEventId && newGoogleEventId !== existingGcalId) {
+  console.log('[Calendar] result googleEventId:', newGoogleEventId);
+  if (newGoogleEventId) {
     reservation.googleEventId = newGoogleEventId;
     reservations[id] = reservation;
+    // Sempre guardem (tant si és nou ID com si és el mateix actualitzat)
     try { await db.ref('reservations/' + id + '/googleEventId').set(newGoogleEventId); } catch (e) {}
   }
 
