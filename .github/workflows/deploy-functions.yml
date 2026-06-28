@@ -6,6 +6,8 @@ on:
     paths:
       - 'functions/**'
       - 'firebase.json'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
