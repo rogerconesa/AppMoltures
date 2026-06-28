@@ -839,6 +839,105 @@ main { max-width: 1260px; margin: 0 auto; padding: 1.25rem; }
 .cap-dot.red    { background: var(--red); }
 .cap-dot.purple { background: var(--purple); }
 
+/* ===== DAY DETAIL EVENT CARDS ===== */
+
+.dd-event-card {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 0.85rem;
+  align-items: start;
+  border-radius: 16px;
+  padding: 0.9rem;
+  border: 1px solid transparent;
+  margin-bottom: 0.65rem;
+}
+
+.dd-event-card:last-child { margin-bottom: 0; }
+
+.dd-event-card.blue   { background: var(--blue-bg); }
+.dd-event-card.yellow { background: var(--yellow-bg); }
+.dd-event-card.red    { background: var(--red-bg); }
+.dd-event-card.purple { background: var(--purple-bg); }
+
+.dd-event-left .event-date {
+  border-radius: 14px;
+  background: rgba(255,255,255,0.55);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 56px;
+  padding: 0.4rem;
+  text-align: center;
+}
+
+:root[data-theme="dark"] .dd-event-left .event-date { background: rgba(255,255,255,0.08); }
+
+.dd-event-left .event-date span  { font-size: 1.2rem; font-weight: 800; line-height: 1; color: var(--text); display: block; }
+.dd-event-left .event-date strong { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-soft); display: block; }
+
+.dd-event-body { min-width: 0; }
+
+.dd-event-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.dd-gcal-badge { font-size: 0.85rem; line-height: 1; }
+
+.dd-event-meta {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+  margin-top: 0.1rem;
+}
+
+.dd-event-meta strong { color: var(--text); font-weight: 700; }
+
+.dd-event-total {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.dd-event-total strong { color: var(--text); font-weight: 800; }
+
+.dd-event-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.dd-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border-radius: 10px;
+}
+
+@media (max-width: 480px) {
+  .dd-event-card {
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: auto auto;
+  }
+  .dd-event-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
 /* ===== RESPONSIVE HISTORIC ===== */
 
 @media (max-width: 1100px) {
