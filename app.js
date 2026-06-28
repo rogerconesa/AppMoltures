@@ -1028,6 +1028,41 @@ function closeInstallPrompt() {
   document.getElementById('installOverlay').classList.remove('open');
 }
 
+/* ===== SCROLL HIDE/SHOW (header + bottom nav persiana) ===== */
+function initScrollBehavior() {
+  const header = document.querySelector('header');
+  const bottomNav = document.getElementById('bottom-nav');
+  if (!header && !bottomNav) return;
+
+  let lastY = window.scrollY;
+  let ticking = false;
+  const THRESHOLD = 6;
+
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+
+      if (Math.abs(delta) > THRESHOLD) {
+        const goingDown = delta > 0;
+        if (header) header.style.transform = goingDown ? 'translateY(-100%)' : 'translateY(0)';
+        if (bottomNav) bottomNav.style.transform = goingDown ? 'translateY(100%)' : 'translateY(0)';
+        lastY = y;
+      }
+
+      if (y <= 10) {
+        if (header) header.style.transform = 'translateY(0)';
+        if (bottomNav) bottomNav.style.transform = 'translateY(0)';
+        lastY = y;
+      }
+
+      ticking = false;
+    });
+  }, { passive: true });
+}
+
 /* ===== INIT ===== */
 
 initTheme();
@@ -1035,3 +1070,4 @@ renderAll();
 showView('summary');
 startRealtimeSync();
 initInstallPrompt();
+initScrollBehavior();
