@@ -52,6 +52,11 @@ let notifTimer = null;
 let rtdbReady = false;
 let feedbackTab = 'submit';
 
+// Historic state
+let historicFilter = { family: '', space: '', dateFrom: '', dateTo: '' };
+let historicSort = { col: 'date', dir: 'desc' };
+let _chartInstances = {};
+
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -116,13 +121,8 @@ function getCapLabel(total) {
   return 'Aforament molt alt';
 }
 
-// FIX: accepta tant string com array
-function getFamilyInitials(familyVal) {
-  const id = Array.isArray(familyVal) ? familyVal[0] : familyVal;
-  if (!id) return '?';
-  const name = getFamilyName(id);
-  if (typeof name !== 'string') return '?';
-  return name
+function getFamilyInitials(id) {
+  return getFamilyName(id)
     .split(/[\/\s]+/)
     .filter(Boolean)
     .map((part) => part[0])
@@ -202,11 +202,11 @@ function showView(view) {
   currentView = view;
   document.getElementById('view-summary').classList.toggle('active', view === 'summary');
   document.getElementById('view-month').classList.toggle('active', view === 'month');
-
-  // Bottom nav tabs
-  document.querySelectorAll('#bottom-nav .nav-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.view === view);
-  });
+  document.getElementById('view-historic').classList.toggle('active', view === 'historic');
+  document.getElementById('nav-summary').classList.toggle('active', view === 'summary');
+  document.getElementById('nav-month').classList.toggle('active', view === 'month');
+  document.getElementById('nav-historic').classList.toggle('active', view === 'historic');
+  if (view === 'historic') renderHistoric();
 }
 
 function getWeekDates(offset) {
@@ -250,6 +250,17 @@ function buildFamilyGrid() {
   `).join('');
 }
 
+function buildSlotGrid() {
+  const g = document.getElementById('slotGrid');
+  if (!g) return;
+  g.innerHTML = SLOTS.map((s) => `
+    <button class="picker-btn" onclick="selectSlot('${s.id}')">
+      <strong>${escapeHtml(s.name)}</strong>
+      <span>${escapeHtml(s.note)}</span>
+    </button>
+  `).join('');
+}
+
 function buildSpaceGrid() {
   const g = document.getElementById('spaceGrid');
   g.innerHTML = SPACES.map((s) => `
@@ -273,7 +284,7 @@ function toggleFamily(id) {
   else selectedFamilies.add(id);
   buildFamilyGrid();
 }
-
+function selectSlot(id) { buildSlotGrid(); }
 function toggleSpace(id) {
   if (selectedSpaces.has(id)) selectedSpaces.delete(id);
   else selectedSpaces.add(id);
@@ -363,14 +374,8 @@ async function saveReservation() {
   reservations[id] = reservation;
   renderAll();
 
-  try {
-    await db.ref('reservations/' + id).set(reservation);
-    showNotif(editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat', 'success');
-  } catch (e) {
-    console.error('RTDB save failed:', e);
-    showNotif('Error desant: ' + (e.message || e.code || 'error desconegut'), 'error');
-    updateSyncStatus(false);
-  }
+  try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
+  showNotif(editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat', 'success');
 }
 
 function resCardHTML(id, r, compact) {
@@ -382,7 +387,6 @@ function resCardHTML(id, r, compact) {
   const time = getEventTimeLabel(r);
 
   if (compact) {
-    // FIX: passar r.family directament (getFamilyInitials ja gestiona array/string)
     return `<div class="chip ${color}" onclick="event.stopPropagation();openModal('','','${id}')">${escapeHtml(getFamilyInitials(r.family))}</div>`;
   }
   return `
@@ -430,6 +434,58 @@ function renderEventSummary() {
   document.getElementById('eventSummary').innerHTML = html;
 }
 
+function renderWeekMobile(dates) {
+  const html = dates.map((date) => {
+    const key = dateKey(date);
+    const dayRes = getReservationsForDate(key);
+    const blocks = SLOTS.map((slot) => {
+      const entry = dayRes.find(([, r]) => r.slot === slot.id);
+      const content = entry
+        ? resCardHTML(entry[0], entry[1])
+        : `<div class="mobile-empty">Franja lliure</div><button class="btn-soft" onclick="openModal('${key}','${slot.id}')">Reservar ${escapeHtml(slot.name.toLowerCase())}</button>`;
+      return `<div class="mobile-slot"><div class="ms-head"><div class="ms-title">${escapeHtml(slot.name)}</div><div class="ms-note">${escapeHtml(slot.note)}</div></div>${content}</div>`;
+    }).join('');
+    const wc = isWeekend(date) ? ' weekend' : '';
+    const tc = isToday(date) ? ' today' : '';
+    return `<section class="mobile-day${wc}${tc}"><div class="md-head"><div><div class="md-name">${escapeHtml(DAY_NAMES[(date.getDay()+6)%7])}</div><div class="md-date">${date.getDate()} ${MONTHS_CA[date.getMonth()]} ${date.getFullYear()}</div></div><span class="md-badge">${dayRes.length} ${dayRes.length===1?'reserva':'reserves'}</span></div><div class="ms-list">${blocks}</div></section>`;
+  }).join('');
+  document.getElementById('weekMobile').innerHTML = '<div class="wm-list">' + html + '</div>';
+}
+
+function renderWeek() {
+  const dates = getWeekDates(weekOffset);
+  const from = dates[0], to = dates[6];
+  document.getElementById('weekTitle').textContent = from.getMonth() === to.getMonth()
+    ? `${from.getDate()}-${to.getDate()} ${MONTHS_CA[from.getMonth()]} ${from.getFullYear()}`
+    : `${from.getDate()} ${MONTHS_CA[from.getMonth()]} - ${to.getDate()} ${MONTHS_CA[to.getMonth()]} ${to.getFullYear()}`;
+  renderEventSummary();
+
+  let html = '<div class="wc-corner"></div>';
+  dates.forEach((date) => {
+    const mi = (date.getDay() + 6) % 7;
+    const we = isWeekend(date) ? ' weekend' : '';
+    const td = isToday(date) ? ' today' : '';
+    html += `<div class="wc-header${we}${td}">${DAY_SHORT[mi]}<strong>${date.getDate()}</strong></div>`;
+  });
+
+  SLOTS.forEach((slot) => {
+    html += `<div class="wc-slot"><div class="wcs-name">${escapeHtml(slot.name)}</div><div class="wcs-note">${escapeHtml(slot.note)}</div></div>`;
+    dates.forEach((date) => {
+      const key = dateKey(date);
+      const entry = getReservationFor(key, slot.id);
+      const we = isWeekend(date) ? ' weekend' : '';
+      if (entry) {
+        html += `<div class="wc-cell${we}">${resCardHTML(entry[0], entry[1])}</div>`;
+      } else {
+        html += `<div class="wc-cell${we}"><div class="cell-empty"><span class="empty-note">Franja lliure</span><button class="btn-soft" onclick="openModal('${key}','${slot.id}')">Reservar ${escapeHtml(slot.name.toLowerCase())}</button></div></div>`;
+      }
+    });
+  });
+
+  document.getElementById('weekGrid').innerHTML = html;
+  renderWeekMobile(dates);
+}
+
 function renderMonthCalendar() {
   const first = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
   document.getElementById('monthTitle').textContent = `${MONTHS_CA[first.getMonth()]} ${first.getFullYear()}`;
@@ -451,21 +507,13 @@ function renderMonthCalendar() {
   cells.forEach(({ date, other }) => {
     const key = dateKey(date);
     const dayRes = getReservationsForDate(key);
-
-    // FIX: generar chips correctament per a tots els events del dia
-    const chips = dayRes.map(([id, r]) => {
-      const color = r.capacityColor || getCapColor(getTotalPeople(r));
-      const initials = escapeHtml(getFamilyInitials(r.family));
-      return `<div class="chip ${color}" onclick="event.stopPropagation();openModal('','','${id}')">${initials}</div>`;
-    }).join('');
-
+    const chips = dayRes.length
+      ? dayRes.map(([id, r]) => `<div class="chip ${r.capacityColor||getCapColor(getTotalPeople(r))}" onclick="event.stopPropagation();openModal('','','${id}')">${escapeHtml(getFamilyInitials(r.family))}</div>`).join('')
+      : '';
     const ot = other ? ' other' : '';
     const we = isWeekend(date) ? ' weekend' : '';
     const td = isToday(date) ? ' today' : '';
-    html += `<div class="mc-day${ot}${we}${td}" onclick="openDayDetail('${key}')">
-      <div class="mc-day-top"><span class="mc-day-num">${date.getDate()}</span></div>
-      <div class="mc-day-items">${chips || '<span class="mc-empty">-</span>'}</div>
-    </div>`;
+    html += `<div class="mc-day${ot}${we}${td}" onclick="openDayDetail('${key}')"><div class="mc-day-top"><span class="mc-day-num">${date.getDate()}</span></div><div class="mc-day-items">${chips||'<span class="mc-empty">-</span>'}</div></div>`;
   });
 
   document.getElementById('monthGrid').innerHTML = html;
@@ -495,6 +543,7 @@ function renderAll() {
   renderEventSummary();
   renderMonthCalendar();
   buildLegend();
+  if (currentView === 'historic') renderHistoric();
   showView(currentView);
 }
 
@@ -532,6 +581,310 @@ function startRealtimeSync() {
   } catch (err) {
     console.warn('RTDB init error:', err);
   }
+}
+
+/* ===== HISTORIC VIEW ===== */
+
+function getAllReservationsSorted() {
+  return Object.entries(reservations)
+    .sort((a, b) => b[1].date.localeCompare(a[1].date));
+}
+
+function getFilteredReservations() {
+  const { family, space, dateFrom, dateTo } = historicFilter;
+  return getAllReservationsSorted().filter(([, r]) => {
+    if (family && !(Array.isArray(r.family) ? r.family.includes(family) : r.family === family)) return false;
+    if (space && !(r.spaces || []).includes(space)) return false;
+    if (dateFrom && r.date < dateFrom) return false;
+    if (dateTo && r.date > dateTo) return false;
+    return true;
+  });
+}
+
+function computeStats(entries) {
+  const byFamily = {}, bySpace = {}, byMonth = {};
+  let totalAdults = 0, totalChildren = 0;
+
+  entries.forEach(([, r]) => {
+    const adults = Number(r.adults || 0);
+    const children = Number(r.children || 0);
+    totalAdults += adults;
+    totalChildren += children;
+
+    const families = Array.isArray(r.family) ? r.family : [r.family];
+    families.forEach(fid => {
+      if (!byFamily[fid]) byFamily[fid] = { events: 0, adults: 0, children: 0 };
+      byFamily[fid].events++;
+      byFamily[fid].adults += adults;
+      byFamily[fid].children += children;
+    });
+
+    (r.spaces || []).forEach(sid => {
+      if (!bySpace[sid]) bySpace[sid] = 0;
+      bySpace[sid]++;
+    });
+
+    const month = r.date.slice(0, 7);
+    if (!byMonth[month]) byMonth[month] = { events: 0, people: 0 };
+    byMonth[month].events++;
+    byMonth[month].people += adults + children;
+  });
+
+  return { byFamily, bySpace, byMonth, totalAdults, totalChildren };
+}
+
+function destroyCharts() {
+  Object.values(_chartInstances).forEach(c => { try { c.destroy(); } catch(e) {} });
+  _chartInstances = {};
+}
+
+function renderChart(canvasId, config) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (_chartInstances[canvasId]) { try { _chartInstances[canvasId].destroy(); } catch(e) {} }
+  _chartInstances[canvasId] = new Chart(canvas.getContext('2d'), config);
+}
+
+function renderHistoric() {
+  const entries = getFilteredReservations();
+  const stats = computeStats(entries);
+  renderHistoricFilters();
+  renderKPIs(stats, entries.length);
+  renderChartsSection(stats);
+  renderHistoricTable(entries);
+}
+
+function renderHistoricFilters() {
+  const el = document.getElementById('historicFilters');
+  if (!el) return;
+  const { family, space, dateFrom, dateTo } = historicFilter;
+
+  el.innerHTML = `
+    <div class="hf-grid">
+      <div class="form-group hf-group">
+        <label class="form-label">Família</label>
+        <select class="form-control form-control-sm" onchange="historicFilter.family=this.value;renderHistoric()">
+          <option value="">Totes</option>
+          ${FAMILIES.map(f => `<option value="${f.id}"${family===f.id?' selected':''}>${escapeHtml(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group hf-group">
+        <label class="form-label">Espai</label>
+        <select class="form-control form-control-sm" onchange="historicFilter.space=this.value;renderHistoric()">
+          <option value="">Tots</option>
+          ${SPACES.map(s => `<option value="${s.id}"${space===s.id?' selected':''}>${escapeHtml(s.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group hf-group">
+        <label class="form-label">Des de</label>
+        <input type="date" class="form-control form-control-sm" value="${dateFrom}" onchange="historicFilter.dateFrom=this.value;renderHistoric()">
+      </div>
+      <div class="form-group hf-group">
+        <label class="form-label">Fins a</label>
+        <input type="date" class="form-control form-control-sm" value="${dateTo}" onchange="historicFilter.dateTo=this.value;renderHistoric()">
+      </div>
+      <div class="form-group hf-group hf-reset">
+        <label class="form-label">&nbsp;</label>
+        <button class="btn-secondary" onclick="historicFilter={family:'',space:'',dateFrom:'',dateTo:''};renderHistoric()">Netejar</button>
+      </div>
+    </div>`;
+}
+
+function renderKPIs(stats, count) {
+  const el = document.getElementById('historicKPIs');
+  if (!el) return;
+  const total = stats.totalAdults + stats.totalChildren;
+  const avg = count > 0 ? (total / count).toFixed(1) : 0;
+  const topFamily = Object.entries(stats.byFamily).sort((a,b) => b[1].events - a[1].events)[0];
+  const topSpace = Object.entries(stats.bySpace).sort((a,b) => b[1] - a[1])[0];
+
+  el.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-num">${count}</div>
+        <div class="kpi-label">Esdeveniments</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-num">${stats.totalAdults}</div>
+        <div class="kpi-label">Adults totals</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-num">${stats.totalChildren}</div>
+        <div class="kpi-label">Nens totals</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-num">${total}</div>
+        <div class="kpi-label">Persones totals</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-num">${avg}</div>
+        <div class="kpi-label">Mitjana / event</div>
+      </div>
+      <div class="kpi-card teal">
+        <div class="kpi-num">${topFamily ? escapeHtml(getFamilyName(topFamily[0]).split('/')[0].trim()) : '—'}</div>
+        <div class="kpi-label">Família + activa</div>
+      </div>
+    </div>`;
+}
+
+function renderChartsSection(stats) {
+  destroyCharts();
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const textColor = isDark ? '#b4c0d3' : '#55657a';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  const COLORS = ['#2563eb','#b45309','#dc2626','#7c3aed','#16a34a','#0891b2','#ea580c','#db2777'];
+  const BG_COLORS = ['#bfdbfe','#fde68a','#fca5a5','#ddd6fe','#a7f3d0','#a5f3fc','#fed7aa','#fbcfe8'];
+
+  const baseScales = {
+    x: { ticks: { color: textColor, font: { family: 'Inter', size: 11 } }, grid: { color: gridColor } },
+    y: { ticks: { color: textColor, font: { family: 'Inter', size: 11 } }, grid: { color: gridColor }, beginAtZero: true }
+  };
+  const baseLegend = { labels: { color: textColor, font: { family: 'Inter', size: 12 }, padding: 14, boxWidth: 12 } };
+
+  // Chart 1: events by family (bar)
+  const famEntries = Object.entries(stats.byFamily).sort((a,b) => b[1].events - a[1].events);
+  if (famEntries.length) {
+    renderChart('chartByFamily', {
+      type: 'bar',
+      data: {
+        labels: famEntries.map(([id]) => getFamilyName(id).split('/')[0].trim()),
+        datasets: [{
+          label: 'Esdeveniments',
+          data: famEntries.map(([,v]) => v.events),
+          backgroundColor: famEntries.map((_, i) => BG_COLORS[i % BG_COLORS.length]),
+          borderColor: famEntries.map((_, i) => COLORS[i % COLORS.length]),
+          borderWidth: 2, borderRadius: 6
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScales }
+    });
+  }
+
+  // Chart 2: adults vs children stacked by family
+  if (famEntries.length) {
+    renderChart('chartPeopleByFamily', {
+      type: 'bar',
+      data: {
+        labels: famEntries.map(([id]) => getFamilyName(id).split('/')[0].trim()),
+        datasets: [
+          { label: 'Adults', data: famEntries.map(([,v]) => v.adults), backgroundColor: '#bfdbfe', borderColor: '#2563eb', borderWidth: 2, borderRadius: 4 },
+          { label: 'Nens', data: famEntries.map(([,v]) => v.children), backgroundColor: '#fde68a', borderColor: '#b45309', borderWidth: 2, borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { ...baseLegend, position: 'top' } },
+        scales: { x: { ...baseScales.x, stacked: true }, y: { ...baseScales.y, stacked: true } }
+      }
+    });
+  }
+
+  // Chart 3: timeline by month (line)
+  const monthEntries = Object.entries(stats.byMonth).sort((a,b) => a[0].localeCompare(b[0]));
+  if (monthEntries.length) {
+    const monthLabels = monthEntries.map(([m]) => {
+      const [y, mo] = m.split('-');
+      return `${MONTHS_CA[Number(mo)-1].slice(0,3)} ${y.slice(2)}`;
+    });
+    renderChart('chartByMonth', {
+      type: 'line',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          { label: 'Esdeveniments', data: monthEntries.map(([,v]) => v.events), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: '#2563eb' },
+          { label: 'Persones', data: monthEntries.map(([,v]) => v.people), borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.08)', fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: '#16a34a', yAxisID: 'y2' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { ...baseLegend, position: 'top' } },
+        scales: {
+          x: baseScales.x,
+          y: { ...baseScales.y, title: { display: true, text: 'Events', color: textColor, font: { size: 11 } } },
+          y2: { ticks: { color: textColor }, grid: { display: false }, beginAtZero: true, position: 'right', title: { display: true, text: 'Persones', color: textColor, font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // Chart 4: spaces doughnut
+  const spaceEntries = Object.entries(stats.bySpace);
+  if (spaceEntries.length) {
+    renderChart('chartBySpace', {
+      type: 'doughnut',
+      data: {
+        labels: spaceEntries.map(([id]) => getSpaceName(id)),
+        datasets: [{ data: spaceEntries.map(([,v]) => v), backgroundColor: BG_COLORS, borderColor: COLORS, borderWidth: 2 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { ...baseLegend, position: 'bottom' } },
+        cutout: '62%'
+      }
+    });
+  }
+}
+
+function renderHistoricTable(entries) {
+  const el = document.getElementById('historicTable');
+  if (!el) return;
+
+  if (!entries.length) {
+    el.innerHTML = '<div class="dd-empty">No hi ha esdeveniments amb els filtres aplicats.</div>';
+    return;
+  }
+
+  const sortedEntries = [...entries].sort((a, b) => {
+    const { col, dir } = historicSort;
+    let va, vb;
+    if (col === 'date') { va = a[1].date; vb = b[1].date; }
+    else if (col === 'title') { va = getEventTitle(a[1]); vb = getEventTitle(b[1]); }
+    else if (col === 'family') { va = getFamiliesLabel(Array.isArray(a[1].family)?a[1].family:[a[1].family]); vb = getFamiliesLabel(Array.isArray(b[1].family)?b[1].family:[b[1].family]); }
+    else if (col === 'people') { va = getTotalPeople(a[1]); vb = getTotalPeople(b[1]); }
+    else { va = ''; vb = ''; }
+    if (typeof va === 'number') return dir === 'asc' ? va - vb : vb - va;
+    return dir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+
+  function sortIcon(col) {
+    if (historicSort.col !== col) return '<span class="sort-icon">↕</span>';
+    return historicSort.dir === 'asc' ? '<span class="sort-icon active">↑</span>' : '<span class="sort-icon active">↓</span>';
+  }
+
+  const rows = sortedEntries.map(([id, r]) => {
+    const total = getTotalPeople(r);
+    const color = r.capacityColor || getCapColor(total);
+    const date = parseDate(r.date);
+    const isPast = r.date < dateKey(today);
+    const isFuture = r.date > dateKey(today);
+    return `<tr class="ht-row${isPast?' ht-past':''}" onclick="openModal('','','${id}')">
+      <td>
+        <span class="ht-date">${date.getDate()} ${MONTHS_CA[date.getMonth()].slice(0,3)} ${date.getFullYear()}</span>
+        ${isPast ? '<span class="ht-tag past">Passat</span>' : isFuture ? '<span class="ht-tag future">Pròxim</span>' : '<span class="ht-tag today-tag">Avui</span>'}
+      </td>
+      <td><span class="ht-title">${escapeHtml(getEventTitle(r))}</span></td>
+      <td class="ht-family">${escapeHtml(Array.isArray(r.family)?getFamiliesLabel(r.family):getFamilyName(r.family))}</td>
+      <td class="ht-spaces">${escapeHtml(getSpacesLabel(r.spaces))}</td>
+      <td><span class="cap-dot ${color}"></span><span class="ht-people">${r.adults}a · ${r.children}n = <strong>${total}</strong></span></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ht-scroll">
+      <table class="ht-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="historicSort.col==='date'?(historicSort.dir=historicSort.dir==='asc'?'desc':'asc'):(historicSort.col='date',historicSort.dir='asc');renderHistoricTable(getFilteredReservations())">Data ${sortIcon('date')}</th>
+            <th class="sortable" onclick="historicSort.col==='title'?(historicSort.dir=historicSort.dir==='asc'?'desc':'asc'):(historicSort.col='title',historicSort.dir='asc');renderHistoricTable(getFilteredReservations())">Títol ${sortIcon('title')}</th>
+            <th class="sortable" onclick="historicSort.col==='family'?(historicSort.dir=historicSort.dir==='asc'?'desc':'asc'):(historicSort.col='family',historicSort.dir='asc');renderHistoricTable(getFilteredReservations())">Família ${sortIcon('family')}</th>
+            <th>Espais</th>
+            <th class="sortable" onclick="historicSort.col==='people'?(historicSort.dir=historicSort.dir==='asc'?'desc':'asc'):(historicSort.col='people',historicSort.dir='asc');renderHistoricTable(getFilteredReservations())">Persones ${sortIcon('people')}</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 /* ===== FEEDBACK ===== */
@@ -639,6 +992,8 @@ function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   localStorage.setItem('appmoltures-theme', next);
   applyTheme(next);
+  // Re-render charts with new theme colors
+  if (currentView === 'historic') renderHistoric();
 }
 
 function initInstallPrompt() {
