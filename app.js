@@ -13,6 +13,27 @@ const db = firebase.database();
 const reservationsRef = db.ref('reservations');
 const feedbackRef = db.ref('feedback');
 
+// ── Google Calendar Cloud Function ──────────────────────────
+const CALENDAR_FUNCTION_URL = 'https://europe-west1-appmoltures.cloudfunctions.net/calendarEvent';
+
+async function syncCalendar(action, reservation, googleEventId) {
+  try {
+    const body = { action, reservation };
+    if (googleEventId) body.googleEventId = googleEventId;
+    const resp = await fetch(CALENDAR_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) { console.warn('Calendar sync error:', await resp.text()); return null; }
+    const data = await resp.json();
+    return data.googleEventId || null;
+  } catch (e) {
+    console.warn('Calendar sync failed:', e.message);
+    return null;
+  }
+}
+
 const DAY_NAMES = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
 const DAY_SHORT = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];
 const MONTHS_CA = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre'];
@@ -339,10 +360,13 @@ async function handleDelete() {
   if (!editingId || !reservations[editingId]) return;
   if (!confirm('Vols eliminar aquest esdeveniment?')) return;
   const id = editingId;
+  const r = reservations[id];
+  const googleEventId = r && r.googleEventId;
   closeModal();
   delete reservations[id];
   renderAll();
   try { await db.ref('reservations/' + id).remove(); } catch (e) { console.warn(e); }
+  if (googleEventId) await syncCalendar('delete', r, googleEventId);
   showNotif('Esdeveniment eliminat', 'success');
 }
 
@@ -378,7 +402,19 @@ async function saveReservation() {
   renderAll();
 
   try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
-  showNotif(editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat', 'success');
+
+  // Sincronitza amb Google Calendar
+  const wasEdit = !!(editingId);
+  const existingGcalId = wasEdit && reservations[id] ? reservations[id].googleEventId : null;
+  const gcalAction = (wasEdit && existingGcalId) ? 'update' : 'create';
+  const newGoogleEventId = await syncCalendar(gcalAction, reservation, existingGcalId);
+  if (newGoogleEventId) {
+    reservation.googleEventId = newGoogleEventId;
+    reservations[id] = reservation;
+    try { await db.ref('reservations/' + id + '/googleEventId').set(newGoogleEventId); } catch (e) {}
+  }
+
+  showNotif((editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat') + (newGoogleEventId ? ' 📅' : ''), 'success');
 }
 
 function resCardHTML(id, r, compact) {
