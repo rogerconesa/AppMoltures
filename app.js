@@ -395,6 +395,14 @@ async function saveReservation() {
 
   const id = editingId || `rtdb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+  // Guardem l'estat d'edició ABANS de tancar el modal (editingId es perd al closeModal)
+  const isEdit = !!editingId;
+  const notifText = isEdit ? 'Esdeveniment actualitzat' : 'Esdeveniment desat';
+
+  // Recuperem el googleEventId existent de la reserva original ABANS de sobreescriure
+  const existingGcalId = (isEdit && reservations[id]) ? reservations[id].googleEventId : null;
+  if (existingGcalId) reservation.googleEventId = existingGcalId;
+
   closeModal();
   showView('summary');
 
@@ -404,17 +412,15 @@ async function saveReservation() {
   try { await db.ref('reservations/' + id).set(reservation); } catch (e) { console.warn('RTDB save failed:', e); updateSyncStatus(false); }
 
   // Sincronitza amb Google Calendar
-  const wasEdit = !!(editingId);
-  const existingGcalId = wasEdit && reservations[id] ? reservations[id].googleEventId : null;
-  const gcalAction = (wasEdit && existingGcalId) ? 'update' : 'create';
+  const gcalAction = (isEdit && existingGcalId) ? 'update' : 'create';
   const newGoogleEventId = await syncCalendar(gcalAction, reservation, existingGcalId);
-  if (newGoogleEventId) {
+  if (newGoogleEventId && newGoogleEventId !== existingGcalId) {
     reservation.googleEventId = newGoogleEventId;
     reservations[id] = reservation;
     try { await db.ref('reservations/' + id + '/googleEventId').set(newGoogleEventId); } catch (e) {}
   }
 
-  showNotif((editingId ? 'Esdeveniment actualitzat' : 'Esdeveniment desat') + (newGoogleEventId ? ' 📅' : ''), 'success');
+  showNotif(notifText + (newGoogleEventId ? ' 📅' : ''), 'success');
 }
 
 function resCardHTML(id, r, compact) {
