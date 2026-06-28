@@ -9,6 +9,9 @@ on:
       - '.github/workflows/deploy-functions.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -26,6 +29,15 @@ jobs:
         run: cd functions && npm install
 
       - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --project appmoltures --non-interactive --debug 2>&1 | tail -60
+        run: firebase deploy --only functions --project appmoltures --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Allow unauthenticated invocations (public CORS)
+        run: |
+          gcloud auth activate-service-account --key-file=<(echo '${{ secrets.GOOGLE_SA_JSON }}')
+          gcloud functions add-invoker-policy-binding calendarEvent \
+            --region=europe-west1 \
+            --member="allUsers" \
+            --project=appmoltures-500809
+        continue-on-error: true
