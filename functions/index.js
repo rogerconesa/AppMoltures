@@ -1,5 +1,12 @@
 const functions = require('firebase-functions');
 const { google } = require('googleapis');
+const admin = require('firebase-admin');
+
+// Init Firebase Admin (uses service account automatically in Cloud Functions)
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+const db = admin.database();
 
 // ── Configuració ──────────────────────────────────────────────
 const CALENDAR_ID = '0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com';
@@ -120,7 +127,13 @@ exports.calendarEvent = functions
           calendarId: CALENDAR_ID,
           requestBody: eventBody,
         });
-        res.json({ success: true, googleEventId: response.data.id });
+        const googleEventId = response.data.id;
+        // Save googleEventId to Firebase RTDB
+        if (reservation.firebaseId) {
+          await db.ref(`reservations/${reservation.firebaseId}/googleEventId`).set(googleEventId);
+          console.log(`Saved googleEventId ${googleEventId} to Firebase for ${reservation.firebaseId}`);
+        }
+        res.json({ success: true, googleEventId });
 
       } else if (action === 'update') {
         if (!googleEventId) { res.status(400).json({ error: 'googleEventId obligatori per update' }); return; }
