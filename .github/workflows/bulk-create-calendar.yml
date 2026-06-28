@@ -16,9 +16,17 @@ jobs:
         run: npm install googleapis
 
       - name: Create calendar events for all upcoming reservations
-        run: node bulk-create-events.js
+        run: node bulk-create-events.js 2>&1 | tee /tmp/calendar-output.txt
         env:
           FIREBASE_DB_URL: "https://appmoltures-default-rtdb.europe-west1.firebasedatabase.app"
           CALENDAR_ID: "0bbe1cd5f3cb16c6151ccd45f1fbdeb84175b7071d0ecf2bf74ec83e15324e17@group.calendar.google.com"
           GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
-          FIREBASE_TOKEN_SECRET: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Save output to repo
+        run: |
+          cp /tmp/calendar-output.txt calendar-sync-log.txt
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add calendar-sync-log.txt
+          git commit -m "chore: calendar sync log" || echo "Nothing to commit"
+          git push
